@@ -1,7 +1,7 @@
 # parameters
 ARG REPO_NAME="sit310-va"
 ARG DESCRIPTION="Base class repo for UML EECE 5560"
-ARG MAINTAINER="Vansh (agastyakapoorgk@gmail.com)"
+ARG MAINTAINER="VanshAgastya (agastyakapoorgk@gmail.com)"
 # pick an icon from: https://fontawesome.com/v4.7.0/icons/
 ARG ICON="cube"
 
@@ -14,7 +14,7 @@ ARG BASE_IMAGE=dt-core
 ARG LAUNCHER=default
 
 # define base image
-FROM duckietown/${BASE_IMAGE}:${BASE_TAG} as BASE
+FROM duckietown/${BASE_IMAGE}:${BASE_TAG} as BASE RUN apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
 
 # recall all arguments
 ARG ARCH
