@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-# Import Dependencies
 import rospy 
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Float64
@@ -10,55 +9,44 @@ import math
 class DistanceReader:
     def __init__(self):
         
-        # Initialize the node
         rospy.init_node('turtlesim_distance_node', anonymous=True)
 
-        # Initialize subscriber
         rospy.Subscriber("/turtle1/pose", Pose, self.callback)
 
-        # Initialize publisher
         self.distance_publisher = rospy.Publisher('/turtle_dist', Float64, queue_size=10)
 
         rospy.loginfo("Initialized distance node!")
 
-        # Variables to store previous position
         self.prev_x = None
         self.prev_y = None
-
-        # Total distance travelled
         self.total_distance = 0.0
         
         rospy.spin()
 
     def callback(self, msg):
-        rospy.loginfo("Turtle Position: %f %f", msg.x, msg.y)
 
-        # If first message, just store position
-        if self.prev_x is None and self.prev_y is None:
+        # First reading
+        if self.prev_x is None:
             self.prev_x = msg.x
             self.prev_y = msg.y
             return
 
-        # Calculate distance between current and previous position
         dx = msg.x - self.prev_x
         dy = msg.y - self.prev_y
         distance = math.sqrt(dx**2 + dy**2)
 
-        # Add to total distance
         self.total_distance += distance
 
-        # Publish total distance
         self.distance_publisher.publish(self.total_distance)
 
         rospy.loginfo("Total Distance Travelled: %f", self.total_distance)
 
-        # Update previous position
         self.prev_x = msg.x
         self.prev_y = msg.y
 
 
 if __name__ == '__main__': 
     try: 
-        distance_reader_class_instance = DistanceReader()
+        DistanceReader()
     except rospy.ROSInterruptException: 
         pass
