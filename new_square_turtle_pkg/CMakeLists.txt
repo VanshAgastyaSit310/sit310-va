@@ -8,7 +8,7 @@ project(new_square_turtle_pkg)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  geormetry_msgs
+  geometry_msgs
   roscpp
   rospy
   std_msgs
