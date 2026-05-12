@@ -26,7 +26,7 @@ class DriveSquare:
 
         # Rotation movement
         self.ANGULAR_V = 2.0         # Turning speed
-        self.TURN_TIME = 2.0       # Time for ~90 degree turn
+        self.TURN_TIME = 1.0       # Time for ~90 degree turn
 
         # ==============================
 
