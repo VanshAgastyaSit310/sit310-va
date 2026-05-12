@@ -1,64 +1,152 @@
 #!/usr/bin/env python3
 
 import rospy
-from duckietown_msgs.msg import Twist2DStamped
+from duckietown_msgs.msg import Twist2DStamped, FSMState, WheelEncoderStamped
 
 
-class Drive_Square:
+class ClosedLoopSquare:
     def __init__(self):
+        rospy.init_node("closed_loop_square_node", anonymous=True)
 
-        self.cmd_msg = Twist2DStamped()
+        self.robot_name = "mybota002410"
 
-        rospy.init_node('drive_square_node', anonymous=True)
+        self.cmd_topic = "/" + self.robot_name + "/car_cmd_switch_node/cmd"
+        self.left_encoder_topic = "/" + self.robot_name + "/left_wheel_encoder_node/tick"
+        self.right_encoder_topic = "/" + self.robot_name + "/right_wheel_encoder_node/tick"
+        self.fsm_topic = "/" + self.robot_name + "/fsm_node/mode"
 
-        self.pub = rospy.Publisher(
-            '/mybota002444/car_cmd_switch_node/cmd',
+        self.cmd_pub = rospy.Publisher(
+            self.cmd_topic,
             Twist2DStamped,
             queue_size=1
         )
 
+        rospy.Subscriber(self.left_encoder_topic, WheelEncoderStamped, self.left_encoder_callback)
+        rospy.Subscriber(self.right_encoder_topic, WheelEncoderStamped, self.right_encoder_callback)
+        rospy.Subscriber(self.fsm_topic, FSMState, self.fsm_callback)
+
+        self.left_ticks = 0
+        self.right_ticks = 0
+
+        self.started = False
+        self.running = False
+
+        # IMPORTANT:
+        # Change these two values after your testing.
+        # Measure encoder ticks for 1 metre and 90 degrees on your robot.
+        self.TICKS_PER_METER = 850
+        self.TICKS_PER_90_DEGREE = 300
+
+        rospy.on_shutdown(self.stop_robot)
+
+    def left_encoder_callback(self, msg):
+        self.left_ticks = msg.data
+
+    def right_encoder_callback(self, msg):
+        self.right_ticks = msg.data
+
+    def fsm_callback(self, msg):
+        if msg.state == "LANE_FOLLOWING" and not self.started:
+            self.started = True
+            self.running = True
+            rospy.loginfo("Starting closed loop square...")
+            self.draw_square()
+            self.running = False
+            rospy.loginfo("Closed loop square completed.")
+
+    def publish_cmd(self, linear_speed, angular_speed):
+        cmd = Twist2DStamped()
+        cmd.header.stamp = rospy.Time.now()
+        cmd.v = linear_speed
+        cmd.omega = angular_speed
+        self.cmd_pub.publish(cmd)
+
     def stop_robot(self):
-        self.cmd_msg.header.stamp = rospy.Time.now()
-        self.cmd_msg.v = 0.0
-        self.cmd_msg.omega = 0.0
-        self.pub.publish(self.cmd_msg)
+        cmd = Twist2DStamped()
+        cmd.header.stamp = rospy.Time.now()
+        cmd.v = 0.0
+        cmd.omega = 0.0
 
-    def run(self):
-        rospy.sleep(1)  # allow publisher to connect
-        self.move_robot()
+        for i in range(10):
+            self.cmd_pub.publish(cmd)
+            rospy.sleep(0.05)
 
-    def move_robot(self):
+    def move_straight(self, distance_meter, speed):
+        rospy.loginfo("Moving straight: distance = %.2f m, speed = %.2f", distance_meter, speed)
 
-        # Tune these for ~1m square
-        side_time = 1.73
-        turn_time = 0.244
+        start_left = self.left_ticks
+        start_right = self.right_ticks
 
-        for i in range(4):
+        target_ticks = abs(distance_meter) * self.TICKS_PER_METER
 
-            # Move forward (1 side of square)
-            self.cmd_msg.header.stamp = rospy.Time.now()
-            self.cmd_msg.v = 0.5
-            self.cmd_msg.omega = 0.0
-            self.pub.publish(self.cmd_msg)
+        if distance_meter >= 0:
+            move_speed = abs(speed)
+        else:
+            move_speed = -abs(speed)
 
-            rospy.loginfo("Side %d: Forward", i + 1)
-            rospy.sleep(side_time)
+        rate = rospy.Rate(20)
 
-            # Turn 90 degrees
-            self.cmd_msg.header.stamp = rospy.Time.now()
-            self.cmd_msg.v = 0.0
-            self.cmd_msg.omega = 4.0
-            self.pub.publish(self.cmd_msg)
+        while not rospy.is_shutdown():
+            left_change = abs(self.left_ticks - start_left)
+            right_change = abs(self.right_ticks - start_right)
 
-            rospy.loginfo("Side %d: Turn", i + 1)
-            rospy.sleep(turn_time)
+            average_ticks = (left_change + right_change) / 2.0
+
+            if average_ticks >= target_ticks:
+                break
+
+            self.publish_cmd(move_speed, 0.0)
+            rate.sleep()
 
         self.stop_robot()
+        rospy.loginfo("Straight movement completed.")
+
+    def rotate_in_place(self, angle_degree, angular_speed):
+        rospy.loginfo("Rotating: angle = %.2f degrees, angular speed = %.2f", angle_degree, angular_speed)
+
+        start_left = self.left_ticks
+        start_right = self.right_ticks
+
+        target_ticks = abs(angle_degree) / 90.0 * self.TICKS_PER_90_DEGREE
+
+        if angle_degree >= 0:
+            turn_speed = abs(angular_speed)
+        else:
+            turn_speed = -abs(angular_speed)
+
+        rate = rospy.Rate(20)
+
+        while not rospy.is_shutdown():
+            left_change = abs(self.left_ticks - start_left)
+            right_change = abs(self.right_ticks - start_right)
+
+            average_ticks = (left_change + right_change) / 2.0
+
+            if average_ticks >= target_ticks:
+                break
+
+            self.publish_cmd(0.0, turn_speed)
+            rate.sleep()
+
+        self.stop_robot()
+        rospy.loginfo("Rotation completed.")
+
+    def draw_square(self):
+        rospy.loginfo("Drawing 1 metre closed loop square...")
+
+        for side in range(4):
+            rospy.loginfo("Square side %d", side + 1)
+
+            self.move_straight(1.0, 0.25)
+            self.rotate_in_place(90.0, 2.5)
+
+        self.stop_robot()
+        rospy.loginfo("Finished drawing square.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
-        robot = Drive_Square()
-        robot.run()
+        node = ClosedLoopSquare()
+        rospy.spin()
     except rospy.ROSInterruptException:
         pass
