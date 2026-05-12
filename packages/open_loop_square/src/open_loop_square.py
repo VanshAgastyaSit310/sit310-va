@@ -21,12 +21,12 @@ class DriveSquare:
         # ==============================
 
         # Forward movement
-        self.LINEAR_V = 0.22          # Robot forward speed
-        self.STRAIGHT_TIME = 3.8      # Time to move ~1 metre
+        self.LINEAR_V = 1.0       # Robot forward speed
+        self.STRAIGHT_TIME = 4.0  # Time to move ~1 metre
 
         # Rotation movement
-        self.ANGULAR_V = 1.0          # Turning speed
-        self.TURN_TIME = 1.2          # Time for ~90 degree turn
+        self.ANGULAR_V = 2.0         # Turning speed
+        self.TURN_TIME = 2.0       # Time for ~90 degree turn
 
         # ==============================
 
