@@ -16,8 +16,8 @@ class DriveSquare:
         self.cmd_msg = Twist2DStamped()
 
         # Calibration constants (EDIT THESE ONLY)
-        self.LINEAR_V = 0.25        # m/s → forward speed
-        self.STRAIGHT_TIME = 4.0    # seconds → time to travel ~1m
+        self.LINEAR_V = 0.50        # m/s → forward speed
+        self.STRAIGHT_TIME = 2.0    # seconds → time to travel ~1m
 
         self.ANGULAR_V = 1.2        # rad/s → turning speed
         self.TURN_TIME = 3.0        # seconds → time for ~90° turn
