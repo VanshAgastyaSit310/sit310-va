@@ -12,7 +12,7 @@ class Lane_Detector:
         self.cv_bridge = CvBridge()
 
         # CHANGE THIS TOPIC NAME AFTER CHECKING rostopic list
-        self.image_topic = "/camera_node/image/compressed"
+        self.image_topic = "/akandb/camera_node/image/compressed"
         # Example alternative:
         # self.image_topic = "/mybot/camera_node/image/compressed"
 
@@ -44,7 +44,7 @@ class Lane_Detector:
 
         # Optional: flip if your bag images appear upside down
         # Comment this out if the image orientation already looks correct
-        img = cv2.flip(img, 0)
+        #img = cv2.flip(img, 0)
 
         # -----------------------------
         # 1. Crop image to road region
@@ -52,8 +52,10 @@ class Lane_Detector:
         height, width, _ = img.shape
 
         # Keep lower half / lower region where road is visible
-        crop_y_start = int(height * 0.5)
-        crop = img[crop_y_start:height, 0:width]
+        crop_y_start = int(height * 0.65)
+	crop_x_start = int(width * 0.05)
+	crop_x_end = int(width * 0.95)
+	crop = img[crop_y_start:height, crop_x_start:crop_x_end]
 
         # -----------------------------------
         # 2. Convert cropped image to HSV
@@ -63,16 +65,16 @@ class Lane_Detector:
         # ------------------------------------------------
         # 3. White color filtering (lane boundary markers)
         # ------------------------------------------------
-        lower_white = np.array([0, 0, 180], dtype=np.uint8)
-        upper_white = np.array([180, 80, 255], dtype=np.uint8)
+        lower_white = np.array([0, 0, 200], dtype=np.uint8)
+        upper_white = np.array([180, 50, 255], dtype=np.uint8)
         white_mask = cv2.inRange(hsv, lower_white, upper_white)
         white_filtered = cv2.bitwise_and(crop, crop, mask=white_mask)
 
         # ------------------------------------------------
         # 4. Yellow color filtering (dashed center lines)
         # ------------------------------------------------
-        lower_yellow = np.array([15, 80, 80], dtype=np.uint8)
-        upper_yellow = np.array([40, 255, 255], dtype=np.uint8)
+        lower_yellow = np.array([18, 100, 100], dtype=np.uint8)
+        upper_yellow = np.array([35, 255, 255], dtype=np.uint8)
         yellow_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
         yellow_filtered = cv2.bitwise_and(crop, crop, mask=yellow_mask)
 
@@ -88,32 +90,33 @@ class Lane_Detector:
         # 5. Canny Edge Detector on cropped image
         # ------------------------------------------------
         gray_crop = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-        edges = cv2.Canny(gray_crop, 50, 150)
+	gray_crop = cv2.GaussianBlur(gray_crop, (5, 5), 0)
+	edges = cv2.Canny(gray_crop, 80, 160)
 
         # ------------------------------------------------
         # 6. Hough Transform on white-filtered image
         # ------------------------------------------------
-        white_edges = cv2.Canny(white_mask, 50, 150)
+        white_edges = cv2.Canny(white_mask, 80, 160)
         white_lines = cv2.HoughLinesP(
             white_edges,
             rho=1,
             theta=np.pi / 180,
-            threshold=30,
-            minLineLength=20,
-            maxLineGap=10
+            threshold=40,
+            minLineLength=30,
+            maxLineGap=8
         )
 
         # ------------------------------------------------
         # 7. Hough Transform on yellow-filtered image
         # ------------------------------------------------
-        yellow_edges = cv2.Canny(yellow_mask, 50, 150)
+        yellow_edges = cv2.Canny(yellow_mask, 80, 160)
         yellow_lines = cv2.HoughLinesP(
             yellow_edges,
             rho=1,
             theta=np.pi / 180,
-            threshold=20,
-            minLineLength=15,
-            maxLineGap=10
+            threshold=25,
+            minLineLength=20,
+            maxLineGap=8
         )
 
         # ------------------------------------------------
