@@ -58,8 +58,8 @@ class Lane_Detector:
         white_mask = cv2.inRange(hsv, lower_white, upper_white)
 
         # 4. Yellow filtering
-        lower_yellow = np.array([18, 100, 100], dtype=np.uint8)
-        upper_yellow = np.array([35, 255, 255], dtype=np.uint8)
+        lower_yellow = np.array([15, 80, 80], dtype=np.uint8)
+        upper_yellow = np.array([40, 255, 255], dtype=np.uint8)
         yellow_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
 
         # Morphological cleanup
