@@ -11,10 +11,8 @@ class Lane_Detector:
     def __init__(self):
         self.cv_bridge = CvBridge()
 
-        # CHANGE THIS TOPIC NAME AFTER CHECKING rostopic list
+        # Topic from your bag playback
         self.image_topic = "/akandb/camera_node/image/compressed"
-        # Example alternative:
-        # self.image_topic = "/mybot/camera_node/image/compressed"
 
         rospy.init_node("my_lane_detector", anonymous=True)
         self.image_sub = rospy.Subscriber(
@@ -24,7 +22,7 @@ class Lane_Detector:
             queue_size=1
         )
 
-        rospy.loginfo(f"Subscribed to: {self.image_topic}")
+        rospy.loginfo("Subscribed to: {}".format(self.image_topic))
 
     def output_lines(self, original_image, lines, color=(255, 0, 0)):
         output = np.copy(original_image)
@@ -39,46 +37,32 @@ class Lane_Detector:
         return output
 
     def image_callback(self, msg):
-        # Convert ROS compressed image to OpenCV BGR image
         img = self.cv_bridge.compressed_imgmsg_to_cv2(msg, "bgr8")
 
-        # Optional: flip if your bag images appear upside down
-        # Comment this out if the image orientation already looks correct
-        #img = cv2.flip(img, 0)
+        # Leave this commented unless image looks upside down
+        # img = cv2.flip(img, 0)
 
-        # -----------------------------
         # 1. Crop image to road region
-        # -----------------------------
         height, width, _ = img.shape
-
-        # Keep lower half / lower region where road is visible
         crop_y_start = int(height * 0.65)
-	crop_x_start = int(width * 0.05)
-	crop_x_end = int(width * 0.95)
-	crop = img[crop_y_start:height, crop_x_start:crop_x_end]
+        crop_x_start = int(width * 0.05)
+        crop_x_end = int(width * 0.95)
+        crop = img[crop_y_start:height, crop_x_start:crop_x_end]
 
-        # -----------------------------------
         # 2. Convert cropped image to HSV
-        # -----------------------------------
         hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
 
-        # ------------------------------------------------
-        # 3. White color filtering (lane boundary markers)
-        # ------------------------------------------------
+        # 3. White filtering
         lower_white = np.array([0, 0, 200], dtype=np.uint8)
         upper_white = np.array([180, 50, 255], dtype=np.uint8)
         white_mask = cv2.inRange(hsv, lower_white, upper_white)
-        white_filtered = cv2.bitwise_and(crop, crop, mask=white_mask)
 
-        # ------------------------------------------------
-        # 4. Yellow color filtering (dashed center lines)
-        # ------------------------------------------------
+        # 4. Yellow filtering
         lower_yellow = np.array([18, 100, 100], dtype=np.uint8)
         upper_yellow = np.array([35, 255, 255], dtype=np.uint8)
         yellow_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
-        yellow_filtered = cv2.bitwise_and(crop, crop, mask=yellow_mask)
 
-        # Morphological cleanup to reduce noise
+        # Morphological cleanup
         kernel = np.ones((5, 5), np.uint8)
         white_mask = cv2.erode(white_mask, kernel, iterations=1)
         white_mask = cv2.dilate(white_mask, kernel, iterations=1)
@@ -86,16 +70,15 @@ class Lane_Detector:
         yellow_mask = cv2.erode(yellow_mask, kernel, iterations=1)
         yellow_mask = cv2.dilate(yellow_mask, kernel, iterations=1)
 
-        # ------------------------------------------------
-        # 5. Canny Edge Detector on cropped image
-        # ------------------------------------------------
-        gray_crop = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-	gray_crop = cv2.GaussianBlur(gray_crop, (5, 5), 0)
-	edges = cv2.Canny(gray_crop, 80, 160)
+        white_filtered = cv2.bitwise_and(crop, crop, mask=white_mask)
+        yellow_filtered = cv2.bitwise_and(crop, crop, mask=yellow_mask)
 
-        # ------------------------------------------------
-        # 6. Hough Transform on white-filtered image
-        # ------------------------------------------------
+        # 5. Canny edge detector on cropped image
+        gray_crop = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+        gray_crop = cv2.GaussianBlur(gray_crop, (5, 5), 0)
+        edges = cv2.Canny(gray_crop, 80, 160)
+
+        # 6. Hough transform on white-filtered image
         white_edges = cv2.Canny(white_mask, 80, 160)
         white_lines = cv2.HoughLinesP(
             white_edges,
@@ -106,9 +89,7 @@ class Lane_Detector:
             maxLineGap=8
         )
 
-        # ------------------------------------------------
-        # 7. Hough Transform on yellow-filtered image
-        # ------------------------------------------------
+        # 7. Hough transform on yellow-filtered image
         yellow_edges = cv2.Canny(yellow_mask, 80, 160)
         yellow_lines = cv2.HoughLinesP(
             yellow_edges,
@@ -119,21 +100,12 @@ class Lane_Detector:
             maxLineGap=8
         )
 
-        # ------------------------------------------------
-        # 8. Draw detected lines on cropped image
-        # ------------------------------------------------
+        # 8. Draw lines on cropped image
         output = np.copy(crop)
-
-        # Draw white lines in blue
         output = self.output_lines(output, white_lines, color=(255, 0, 0))
-
-        # Draw yellow lines in red
         output = self.output_lines(output, yellow_lines, color=(0, 0, 255))
 
-        # ------------------------------------------------
-        # Convert processed HSV images back to BGR/RGB view
-        # for demonstration, as requested by the lab sheet
-        # ------------------------------------------------
+        # HSV back to BGR for display
         hsv_bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
 
         # Show results
@@ -145,7 +117,6 @@ class Lane_Detector:
         cv2.imshow("6_white_hough_input_edges", white_edges)
         cv2.imshow("7_yellow_hough_input_edges", yellow_edges)
         cv2.imshow("8_final_output_lines", output)
-
         cv2.waitKey(1)
 
     def run(self):
