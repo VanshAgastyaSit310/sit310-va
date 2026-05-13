@@ -12,7 +12,7 @@ class Lane_Detector:
         self.cv_bridge = CvBridge()
 
         # Topic from your bag playback
-        self.image_topic = "/akandb/camera_node/image/compressed"
+        self.image_topic = "/mybota002833/camera_node/image/compressed"
 
         rospy.init_node("my_lane_detector", anonymous=True)
         self.image_sub = rospy.Subscriber(
